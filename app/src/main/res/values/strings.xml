@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Extra Dim Toggle</string>
+    <string name="tile_label">Extra Dim</string>
+    <string name="widget_description">Toggle Extra Dim (reduce bright colors)</string>
+</resources>
