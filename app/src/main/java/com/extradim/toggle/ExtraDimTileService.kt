@@ -1,4 +1,4 @@
-package com.example.extradim
+package com.extradim.toggle
 
 import android.os.Handler
 import android.os.Looper

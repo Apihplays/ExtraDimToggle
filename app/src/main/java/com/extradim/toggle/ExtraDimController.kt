@@ -1,4 +1,4 @@
-package com.example.extradim
+package com.extradim.toggle
 
 /**
  * Controls the system "Reduce bright colors" (Extra Dim) setting:

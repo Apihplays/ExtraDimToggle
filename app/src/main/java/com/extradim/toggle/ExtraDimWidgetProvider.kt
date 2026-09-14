@@ -1,4 +1,4 @@
-package com.example.extradim
+package com.extradim.toggle
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -76,6 +76,6 @@ class ExtraDimWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
-        const val ACTION_TOGGLE = "com.example.extradim.action.TOGGLE"
+        const val ACTION_TOGGLE = "com.extradim.toggle.action.TOGGLE"
     }
 }
