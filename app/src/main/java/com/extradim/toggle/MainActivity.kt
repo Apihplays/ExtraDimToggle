@@ -43,17 +43,18 @@ fun ExtraDimScreen() {
     fun refresh() {
         scope.launch {
             working = true
-            val result = withContext(Dispatchers.IO) {
+            // All snapshot writes happen on the main thread; only the slow
+            // root-shell calls run on Dispatchers.IO.
+            val (rootOk, result) = withContext(Dispatchers.IO) {
                 if (RootShell.isRootAvailable()) {
-                    rootState = true
-                    ExtraDimController.isEnabled()
+                    true to ExtraDimController.isEnabled()
                 } else {
-                    rootState = false
-                    null
+                    false to null
                 }
             }
+            rootState = rootOk
             enabled = result
-            if (rootState == false) {
+            if (!rootOk) {
                 error = "Root access denied. Grant root to this app in your superuser manager."
             }
             working = false
