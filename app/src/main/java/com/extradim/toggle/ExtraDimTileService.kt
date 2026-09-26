@@ -15,14 +15,21 @@ class ExtraDimTileService : TileService() {
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    override fun onCreate() {
+        super.onCreate()
+        ShizukuShell.init(applicationContext)
+    }
+
     override fun onStartListening() {
         refreshTileAsync()
     }
 
     override fun onClick() {
         Thread {
-            ExtraDimController.toggle()
-            refreshTileAsync()
+            val enabled = ExtraDimController.toggle()
+            mainHandler.post {
+                applyTileState(enabled)
+            }
         }.start()
     }
 
@@ -34,12 +41,16 @@ class ExtraDimTileService : TileService() {
         Thread {
             val enabled = ExtraDimController.isEnabled()
             mainHandler.post {
-                val tile = qsTile ?: return@post  // service not listening anymore
-                tile.state = if (enabled) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
-                tile.label = getString(R.string.tile_label)
-                tile.contentDescription = tile.label
-                tile.updateTile()
+                applyTileState(enabled)
             }
         }.start()
+    }
+
+    private fun applyTileState(enabled: Boolean) {
+        val tile = qsTile ?: return
+        tile.state = if (enabled) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
+        tile.label = getString(R.string.tile_label)
+        tile.contentDescription = tile.label
+        tile.updateTile()
     }
 }

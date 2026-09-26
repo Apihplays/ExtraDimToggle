@@ -21,12 +21,13 @@ android {
         applicationId = "com.extradim.toggle"
         minSdk = 26
         targetSdk = 37 // Android 17
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.1.0"
     }
 
     buildFeatures {
         compose = true
+        aidl = true // IShellService.aidl for the Shizuku user service
     }
 
     signingConfigs {
@@ -119,5 +120,7 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.activity:activity-compose:1.10.1")
+    implementation("dev.rikka.shizuku:api:13.1.5")
+    implementation("dev.rikka.shizuku:provider:13.1.5")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

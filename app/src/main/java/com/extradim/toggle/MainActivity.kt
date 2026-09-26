@@ -1,5 +1,6 @@
 package com.extradim.toggle
 
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -13,11 +14,13 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import rikka.shizuku.Shizuku
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ShizukuShell.init(applicationContext)
         setContent {
             MaterialTheme {
                 Surface(
@@ -35,7 +38,8 @@ class MainActivity : ComponentActivity() {
 fun ExtraDimScreen() {
     val scope = rememberCoroutineScope()
 
-    var rootState by remember { mutableStateOf<Boolean?>(null) }
+    // null = still probing; RootShell.Backend = the working backend.
+    var backend by remember { mutableStateOf<RootShell.Backend?>(null) }
     var enabled by remember { mutableStateOf<Boolean?>(null) }
     var working by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -44,24 +48,48 @@ fun ExtraDimScreen() {
         scope.launch {
             working = true
             // All snapshot writes happen on the main thread; only the slow
-            // root-shell calls run on Dispatchers.IO.
-            val (rootOk, result) = withContext(Dispatchers.IO) {
-                if (RootShell.isRootAvailable()) {
-                    true to ExtraDimController.isEnabled()
-                } else {
-                    false to null
-                }
+            // privileged calls run on Dispatchers.IO.
+            val (probed, result) = withContext(Dispatchers.IO) {
+                val b = RootShell.probe()
+                b to b?.let { ExtraDimController.isEnabled() }
             }
-            rootState = rootOk
+            backend = probed
             enabled = result
-            if (!rootOk) {
-                error = "Root access denied. Grant root to this app in your superuser manager."
+            error = when {
+                probed != null -> null
+                ShizukuShell.isBinderAlive() && !ShizukuShell.isGranted() ->
+                    "Root unavailable. Shizuku is running but hasn't been granted access yet."
+                else ->
+                    "No root and no usable Shizuku server. Grant root to this app, or start Shizuku (wireless debugging) and grant it access."
             }
             working = false
         }
     }
 
     LaunchedEffect(Unit) { refresh() }
+
+    // Re-probe automatically once the user answers Shizuku's dialog.
+    DisposableEffect(Unit) {
+        val listener =
+            Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
+                if (requestCode == ShizukuShell.REQUEST_CODE &&
+                    grantResult == PackageManager.PERMISSION_GRANTED
+                ) {
+                    refresh()
+                }
+            }
+        try {
+            Shizuku.addRequestPermissionResultListener(listener)
+        } catch (e: Throwable) {
+            // Shizuku API unusable on this device; ignore.
+        }
+        onDispose {
+            try {
+                Shizuku.removeRequestPermissionResultListener(listener)
+            } catch (e: Throwable) {
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -102,12 +130,12 @@ fun ExtraDimScreen() {
                     if (success) {
                         enabled = withContext(Dispatchers.IO) { ExtraDimController.isEnabled() }
                     } else {
-                        error = "Failed to change setting (root denied?)"
+                        error = "Failed to change setting (permission denied?)"
                     }
                     working = false
                 }
             },
-            enabled = enabled != null && !working && rootState == true
+            enabled = enabled != null && !working && backend != null
         ) {
             Text(if (enabled == true) "Disable" else "Enable")
         }
@@ -118,6 +146,18 @@ fun ExtraDimScreen() {
             onClick = { refresh() },
             enabled = !working
         ) { Text("Refresh") }
+
+        // Offer the grant flow only when Shizuku is running but not yet allowed.
+        if (backend == null && ShizukuShell.isBinderAlive() && !ShizukuShell.isGranted()) {
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = {
+                    error = null
+                    RootShell.requestShizukuPermission()
+                },
+                enabled = !working
+            ) { Text("Grant Shizuku access") }
+        }
 
         error?.let {
             Spacer(Modifier.height(16.dp))
