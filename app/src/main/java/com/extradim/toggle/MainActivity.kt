@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +37,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun ExtraDimScreen() {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     // null = still probing; RootShell.Backend = the working backend.
@@ -47,14 +49,11 @@ fun ExtraDimScreen() {
     fun refresh() {
         scope.launch {
             working = true
-            // All snapshot writes happen on the main thread; only the slow
-            // privileged calls run on Dispatchers.IO.
-            val (probed, result) = withContext(Dispatchers.IO) {
-                val b = RootShell.probe()
-                b to b?.let { ExtraDimController.isEnabled() }
+            val probed = withContext(Dispatchers.IO) {
+                RootShell.probe()
             }
             backend = probed
-            enabled = result
+            enabled = ExtraDimController.isEnabled(context)
             error = when {
                 probed != null -> null
                 ShizukuShell.isBinderAlive() && !ShizukuShell.isGranted() ->
@@ -128,7 +127,8 @@ fun ExtraDimScreen() {
                         ExtraDimController.setEnabled(!current)
                     }
                     if (success) {
-                        enabled = withContext(Dispatchers.IO) { ExtraDimController.isEnabled() }
+                        enabled = ExtraDimController.isEnabled(context)
+                        ExtraDimWidgetProvider.updateAll(context)
                     } else {
                         error = "Failed to change setting (permission denied?)"
                     }

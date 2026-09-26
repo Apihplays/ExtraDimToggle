@@ -1,19 +1,27 @@
 package com.extradim.toggle
 
+import android.database.ContentObserver
 import android.os.Handler
 import android.os.Looper
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Quick Settings tile: tap to toggle Extra Dim on/off.
  *
- * Root shell calls never run on the main thread: state is read on a
- * background thread, then the tile is updated on the main thread.
+ * Uses native ContentResolver read, ContentObserver for real-time sync,
+ * and Coroutines off the main thread for privileged writes.
  */
 class ExtraDimTileService : TileService() {
 
-    private val mainHandler = Handler(Looper.getMainLooper())
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var settingObserver: ContentObserver? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -21,29 +29,57 @@ class ExtraDimTileService : TileService() {
     }
 
     override fun onStartListening() {
-        refreshTileAsync()
+        // Register ContentObserver to mirror changes made from system settings or widget
+        if (settingObserver == null) {
+            val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+                override fun onChange(selfChange: Boolean) {
+                    syncState()
+                    ExtraDimWidgetProvider.updateAll(this@ExtraDimTileService)
+                }
+            }
+            try {
+                contentResolver.registerContentObserver(
+                    ExtraDimController.SETTING_URI,
+                    false,
+                    observer
+                )
+                settingObserver = observer
+            } catch (e: Exception) {
+                // Ignore observer registration failures if permission is restricted
+            }
+        }
+        syncState()
+    }
+
+    override fun onStopListening() {
+        settingObserver?.let {
+            try {
+                contentResolver.unregisterContentObserver(it)
+            } catch (e: Exception) {
+            }
+            settingObserver = null
+        }
     }
 
     override fun onClick() {
-        Thread {
-            val enabled = ExtraDimController.toggle()
-            mainHandler.post {
-                applyTileState(enabled)
+        serviceScope.launch {
+            val newEnabled = withContext(Dispatchers.IO) {
+                ExtraDimController.toggle(this@ExtraDimTileService)
             }
-        }.start()
+            applyTileState(newEnabled)
+            ExtraDimWidgetProvider.updateAll(this@ExtraDimTileService)
+        }
     }
 
-    /**
-     * Reads the (slow, root-shelled) setting off the main thread, then
-     * applies the result to the tile on the main thread.
-     */
-    private fun refreshTileAsync() {
-        Thread {
-            val enabled = ExtraDimController.isEnabled()
-            mainHandler.post {
-                applyTileState(enabled)
-            }
-        }.start()
+    override fun onDestroy() {
+        super.onDestroy()
+        serviceScope.cancel()
+    }
+
+    private fun syncState() {
+        // Native ContentResolver read is synchronous and fast (no root/process required)
+        val enabled = ExtraDimController.isEnabled(this)
+        applyTileState(enabled)
     }
 
     private fun applyTileState(enabled: Boolean) {
