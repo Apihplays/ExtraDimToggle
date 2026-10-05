@@ -1,6 +1,0 @@
-id=extradim_toggle
-name=Extra Dim Toggle
-version=v1.2.0
-versionCode=4
-author=bossku
-description=Installs the Extra Dim Toggle app (screen, Quick Settings tile, home widget) on flash and re-installs it on boot if missing. The app toggles Reduce Bright Colors via root, falling back to Shizuku (shell uid) when root is unavailable. After flashing, open KernelSU manager and grant root to "Extra Dim Toggle", then toggle from the tile, widget, or app.

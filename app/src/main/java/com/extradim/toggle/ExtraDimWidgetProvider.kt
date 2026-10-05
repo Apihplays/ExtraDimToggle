@@ -24,7 +24,6 @@ class ExtraDimWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
-        ShizukuShell.init(context)
         val pending = goAsync()
         CoroutineScope(Dispatchers.Main).launch {
             try {
@@ -41,7 +40,6 @@ class ExtraDimWidgetProvider : AppWidgetProvider() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
-        ShizukuShell.init(context)
         if (intent.action == ACTION_TOGGLE) {
             val pendingResult = goAsync()
             CoroutineScope(Dispatchers.Main).launch {

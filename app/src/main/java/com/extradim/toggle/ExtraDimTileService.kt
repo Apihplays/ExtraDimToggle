@@ -23,11 +23,6 @@ class ExtraDimTileService : TileService() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var settingObserver: ContentObserver? = null
 
-    override fun onCreate() {
-        super.onCreate()
-        ShizukuShell.init(applicationContext)
-    }
-
     override fun onStartListening() {
         // Register ContentObserver to mirror changes made from system settings or widget
         if (settingObserver == null) {

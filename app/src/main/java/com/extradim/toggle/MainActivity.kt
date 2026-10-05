@@ -1,6 +1,5 @@
 package com.extradim.toggle
 
-import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -15,13 +14,10 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import rikka.shizuku.Shizuku
-
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        ShizukuShell.init(applicationContext)
         setContent {
             MaterialTheme {
                 Surface(
@@ -40,8 +36,7 @@ fun ExtraDimScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // null = still probing; RootShell.Backend = the working backend.
-    var backend by remember { mutableStateOf<RootShell.Backend?>(null) }
+    var rootAvailable by remember { mutableStateOf<Boolean?>(null) }
     var enabled by remember { mutableStateOf<Boolean?>(null) }
     var working by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -49,46 +44,20 @@ fun ExtraDimScreen() {
     fun refresh() {
         scope.launch {
             working = true
-            val probed = withContext(Dispatchers.IO) {
+            rootAvailable = withContext(Dispatchers.IO) {
                 RootShell.probe()
             }
-            backend = probed
             enabled = ExtraDimController.isEnabled(context)
-            error = when {
-                probed != null -> null
-                ShizukuShell.isBinderAlive() && !ShizukuShell.isGranted() ->
-                    "Root unavailable. Shizuku is running but hasn't been granted access yet."
-                else ->
-                    "No root and no usable Shizuku server. Grant root to this app, or start Shizuku (wireless debugging) and grant it access."
+            error = if (rootAvailable == true) {
+                null
+            } else {
+                "Root access unavailable. Grant root access to this app in your root manager."
             }
             working = false
         }
     }
 
     LaunchedEffect(Unit) { refresh() }
-
-    // Re-probe automatically once the user answers Shizuku's dialog.
-    DisposableEffect(Unit) {
-        val listener =
-            Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
-                if (requestCode == ShizukuShell.REQUEST_CODE &&
-                    grantResult == PackageManager.PERMISSION_GRANTED
-                ) {
-                    refresh()
-                }
-            }
-        try {
-            Shizuku.addRequestPermissionResultListener(listener)
-        } catch (e: Throwable) {
-            // Shizuku API unusable on this device; ignore.
-        }
-        onDispose {
-            try {
-                Shizuku.removeRequestPermissionResultListener(listener)
-            } catch (e: Throwable) {
-            }
-        }
-    }
 
     Column(
         modifier = Modifier
@@ -135,7 +104,7 @@ fun ExtraDimScreen() {
                     working = false
                 }
             },
-            enabled = enabled != null && !working && backend != null
+            enabled = enabled != null && !working && rootAvailable == true
         ) {
             Text(if (enabled == true) "Disable" else "Enable")
         }
@@ -146,18 +115,6 @@ fun ExtraDimScreen() {
             onClick = { refresh() },
             enabled = !working
         ) { Text("Refresh") }
-
-        // Offer the grant flow only when Shizuku is running but not yet allowed.
-        if (backend == null && ShizukuShell.isBinderAlive() && !ShizukuShell.isGranted()) {
-            Spacer(Modifier.height(16.dp))
-            Button(
-                onClick = {
-                    error = null
-                    RootShell.requestShizukuPermission()
-                },
-                enabled = !working
-            ) { Text("Grant Shizuku access") }
-        }
 
         error?.let {
             Spacer(Modifier.height(16.dp))

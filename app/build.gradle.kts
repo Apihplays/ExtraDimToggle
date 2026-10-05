@@ -1,6 +1,4 @@
 import java.util.Properties
-import java.util.zip.ZipFile
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -27,7 +25,6 @@ android {
 
     buildFeatures {
         compose = true
-        aidl = true // IShellService.aidl for the Shizuku user service
     }
 
     signingConfigs {
@@ -65,62 +62,11 @@ kotlin {
     }
 }
 
-// KernelSU module packaging: stage module/ files + release APK, then zip them
-// into a flashable module (app/build/distributions/extradim-toggle-module.zip).
-val moduleDir = rootProject.file("module")
-
-val releaseApk = layout.buildDirectory.file(
-    "outputs/apk/release/app-release.apk"
-)
-
-val prepareKsuModule by tasks.registering(Copy::class) {
-    dependsOn(tasks.named("assembleRelease"))
-    from(moduleDir) {
-        include("module.prop", "customize.sh", "service.sh", "uninstall.sh")
-    }
-    from(releaseApk) {
-        rename { "ExtraDimToggle.apk" }
-    }
-    into(layout.buildDirectory.dir("ksuModule/staged"))
-}
-
-val buildKsuModule by tasks.registering(Zip::class) {
-    group = "build"
-    description = "Packages the KernelSU module (module files + release APK) into a flashable zip."
-    dependsOn(prepareKsuModule)
-    archiveFileName.set("extradim-toggle-module.zip")
-    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
-
-    from(moduleDir) {
-        include("module.prop", "customize.sh", "service.sh", "uninstall.sh")
-        eachFile {
-            if (name.endsWith(".sh")) permissions { unix("0755") }
-        }
-    }
-    from(prepareKsuModule.map { it.destinationDir }) {
-        include("ExtraDimToggle.apk")
-    }
-
-    doLast {
-        // Sanity check: every required entry must exist in the zip.
-        ZipFile(outputs.files.singleFile).use { zf ->
-            val names = zf.entries().asSequence().map { it.name }.toSet()
-            listOf(
-                "module.prop", "customize.sh", "service.sh", "uninstall.sh", "ExtraDimToggle.apk"
-            ).forEach { required ->
-                if (required !in names) throw GradleException("Missing entry in module zip: $required")
-            }
-        }
-    }
-}
-
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2025.06.00"))
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.activity:activity-compose:1.10.1")
-    implementation("dev.rikka.shizuku:api:13.1.5")
-    implementation("dev.rikka.shizuku:provider:13.1.5")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
