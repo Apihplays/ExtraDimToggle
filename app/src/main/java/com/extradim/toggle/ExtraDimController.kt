@@ -12,6 +12,9 @@ object ExtraDimController {
 
     private const val SETTING_KEY = "reduce_bright_colors_activated"
 
+    /** Serializes read-then-write so concurrent surfaces can't double-flip. */
+    private val toggleLock = Any()
+
     val SETTING_URI: Uri = Settings.Secure.getUriFor(SETTING_KEY)
 
     fun setEnabled(enabled: Boolean): Boolean {
@@ -30,8 +33,8 @@ object ExtraDimController {
         return RootShell.runWithOutput("settings get secure $SETTING_KEY") == "1"
     }
 
-    fun toggle(context: Context? = null): Boolean {
+    fun toggle(context: Context? = null): Boolean = synchronized(toggleLock) {
         val nowEnabled = if (context != null) isEnabled(context) else isEnabled()
-        return if (setEnabled(!nowEnabled)) !nowEnabled else nowEnabled
+        if (setEnabled(!nowEnabled)) !nowEnabled else nowEnabled
     }
 }

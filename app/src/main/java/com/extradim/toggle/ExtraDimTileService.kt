@@ -58,11 +58,10 @@ class ExtraDimTileService : TileService() {
 
     override fun onClick() {
         serviceScope.launch {
-            val newEnabled = withContext(Dispatchers.IO) {
+            withContext(Dispatchers.IO) {
                 ExtraDimController.toggle(this@ExtraDimTileService)
             }
-            applyTileState(newEnabled)
-            ExtraDimWidgetProvider.updateAll(this@ExtraDimTileService)
+            // ContentObserver handles tile state and widget update reactively
         }
     }
 

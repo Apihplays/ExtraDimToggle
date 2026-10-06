@@ -11,6 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -57,7 +59,9 @@ fun ExtraDimScreen() {
         }
     }
 
-    LaunchedEffect(Unit) { refresh() }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        refresh()
+    }
 
     Column(
         modifier = Modifier

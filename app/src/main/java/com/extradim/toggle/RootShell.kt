@@ -28,30 +28,19 @@ object RootShell {
     private fun exec(command: String): String? = synchronized(lock) {
         var process: Process? = null
         try {
-            val proc = Runtime.getRuntime().exec(arrayOf("su", "-c", command))
+            val proc = ProcessBuilder("su", "-c", command)
+                .redirectErrorStream(true)
+                .start()
             process = proc
 
-            val stdout = StringBuilder()
-            // Drain both pipes while the process runs; an unread pipe can
-            // fill up and block the child process forever.
-            val drainOut = Thread {
-                proc.inputStream.bufferedReader().forEachLine { stdout.appendLine(it) }
-            }
-            val drainErr = Thread {
-                proc.errorStream.bufferedReader().forEachLine { /* drained & discarded */ }
-            }
-            drainOut.start()
-            drainErr.start()
-
+            val output = proc.inputStream.bufferedReader().use { it.readText() }
             val finished = proc.waitFor(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             if (!finished) {
                 proc.destroyForcibly()
                 return null
             }
-            drainOut.join(1_000)
-            drainErr.join(1_000)
 
-            if (proc.exitValue() == 0) stdout.toString().trim() else null
+            if (proc.exitValue() == 0) output.trim() else null
         } catch (e: IOException) {
             null
         } catch (e: InterruptedException) {
