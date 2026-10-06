@@ -23,18 +23,11 @@ object ExtraDimController {
     }
 
     /** Native ContentResolver read: instant, zero root/IPC process overhead. */
-    fun isEnabled(context: Context): Boolean = try {
+    fun isEnabled(context: Context): Boolean =
         Settings.Secure.getInt(context.contentResolver, SETTING_KEY, 0) == 1
-    } catch (e: Exception) {
-        isEnabled()
-    }
 
-    fun isEnabled(): Boolean {
-        return RootShell.runWithOutput("settings get secure $SETTING_KEY") == "1"
-    }
-
-    fun toggle(context: Context? = null): Boolean = synchronized(toggleLock) {
-        val nowEnabled = if (context != null) isEnabled(context) else isEnabled()
+    fun toggle(context: Context): Boolean = synchronized(toggleLock) {
+        val nowEnabled = isEnabled(context)
         if (setEnabled(!nowEnabled)) !nowEnabled else nowEnabled
     }
 }
