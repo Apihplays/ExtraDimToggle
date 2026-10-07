@@ -71,9 +71,12 @@ class ExtraDimTileService : TileService() {
     }
 
     private fun syncState() {
-        // Native ContentResolver read is synchronous and fast (no root/process required)
-        val enabled = ExtraDimController.isEnabled(this)
-        applyTileState(enabled)
+        serviceScope.launch {
+            val enabled = withContext(Dispatchers.IO) {
+                ExtraDimController.isEnabled()
+            }
+            applyTileState(enabled)
+        }
     }
 
     private fun applyTileState(enabled: Boolean) {

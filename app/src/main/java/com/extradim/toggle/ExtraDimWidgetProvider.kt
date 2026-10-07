@@ -61,8 +61,17 @@ class ExtraDimWidgetProvider : AppWidgetProvider() {
         const val ACTION_TOGGLE = "com.extradim.toggle.action.TOGGLE"
 
         fun updateAll(context: Context) {
-            val enabled = ExtraDimController.isEnabled(context)
-            updateAllWidgets(context, enabled)
+            CoroutineScope(Dispatchers.IO).launch {
+                val enabled = ExtraDimController.isEnabled()
+                val mgr = AppWidgetManager.getInstance(context) ?: return@launch
+                val ids = mgr.getAppWidgetIds(
+                    ComponentName(context, ExtraDimWidgetProvider::class.java)
+                )
+                if (ids.isNotEmpty()) {
+                    val views = buildViews(context, enabled)
+                    ids.forEach { id -> mgr.updateAppWidget(id, views) }
+                }
+            }
         }
 
         private fun updateAllWidgets(context: Context, enabled: Boolean) {

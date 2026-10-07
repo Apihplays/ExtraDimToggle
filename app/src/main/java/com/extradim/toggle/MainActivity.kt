@@ -46,11 +46,14 @@ fun ExtraDimScreen() {
     fun refresh() {
         scope.launch {
             working = true
-            rootAvailable = withContext(Dispatchers.IO) {
-                RootShell.probe()
+            val (probed, currentEnabled) = withContext(Dispatchers.IO) {
+                val ok = RootShell.probe()
+                val current = if (ok) ExtraDimController.isEnabled() else null
+                ok to current
             }
-            enabled = ExtraDimController.isEnabled(context)
-            error = if (rootAvailable == true) {
+            rootAvailable = probed
+            enabled = currentEnabled
+            error = if (probed) {
                 null
             } else {
                 "Root access unavailable. Grant root access to this app in your root manager."
@@ -95,12 +98,14 @@ fun ExtraDimScreen() {
                 scope.launch {
                     working = true
                     error = null
-                    val success = withContext(Dispatchers.IO) {
-                        val current = enabled ?: return@withContext false
-                        ExtraDimController.setEnabled(!current)
+                    val (success, newEnabled) = withContext(Dispatchers.IO) {
+                        val current = enabled ?: return@withContext false to null
+                        val ok = ExtraDimController.setEnabled(!current)
+                        val updated = if (ok) ExtraDimController.isEnabled() else null
+                        ok to updated
                     }
                     if (success) {
-                        enabled = ExtraDimController.isEnabled(context)
+                        enabled = newEnabled
                         ExtraDimWidgetProvider.updateAll(context)
                     } else {
                         error = "Failed to change setting (permission denied?)"

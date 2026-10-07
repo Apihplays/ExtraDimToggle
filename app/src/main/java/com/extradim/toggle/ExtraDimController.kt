@@ -22,12 +22,21 @@ object ExtraDimController {
         return RootShell.run("settings put secure $SETTING_KEY $value")
     }
 
-    /** Native ContentResolver read: instant, zero root/IPC process overhead. */
-    fun isEnabled(context: Context): Boolean =
-        Settings.Secure.getInt(context.contentResolver, SETTING_KEY, 0) == 1
+    /**
+     * Reads the setting via root shell.
+     * Note: On Android 12+ (S+), reduce_bright_colors_activated is an @hide key
+     * not annotated with @Readable, so calling Settings.Secure.getInt from a non-system
+     * app throws SecurityException.
+     */
+    fun isEnabled(): Boolean {
+        return RootShell.runWithOutput("settings get secure $SETTING_KEY") == "1"
+    }
 
-    fun toggle(context: Context): Boolean = synchronized(toggleLock) {
-        val nowEnabled = isEnabled(context)
+    /** Overload for compatibility; always delegates to root shell read. */
+    fun isEnabled(context: Context): Boolean = isEnabled()
+
+    fun toggle(context: Context? = null): Boolean = synchronized(toggleLock) {
+        val nowEnabled = isEnabled()
         if (setEnabled(!nowEnabled)) !nowEnabled else nowEnabled
     }
 }
