@@ -19,8 +19,8 @@ android {
         applicationId = "com.extradim.toggle"
         minSdk = 26
         targetSdk = 37 // Android 17
-        versionCode = 6
-        versionName = "1.2.2"
+        versionCode = 7
+        versionName = "1.2.3"
     }
 
     buildFeatures {

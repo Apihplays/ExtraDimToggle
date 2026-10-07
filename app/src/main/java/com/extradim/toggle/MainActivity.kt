@@ -40,12 +40,11 @@ fun ExtraDimScreen() {
 
     var rootAvailable by remember { mutableStateOf<Boolean?>(null) }
     var enabled by remember { mutableStateOf<Boolean?>(null) }
-    var working by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var toggleJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
     fun refresh() {
         scope.launch {
-            working = true
             val (probed, currentEnabled) = withContext(Dispatchers.IO) {
                 val ok = RootShell.probe()
                 val current = if (ok) ExtraDimController.isEnabled() else null
@@ -58,7 +57,6 @@ fun ExtraDimScreen() {
             } else {
                 "Root access unavailable. Grant root access to this app in your root manager."
             }
-            working = false
         }
     }
 
@@ -102,7 +100,11 @@ fun ExtraDimScreen() {
                 enabled = target
                 error = null
 
-                scope.launch {
+                // Cancel previous queued/running toggle so rapid clicks don't stack up
+                toggleJob?.cancel()
+                toggleJob = scope.launch {
+                    // Short debounce (40ms): coalesce burst taps so only the final state runs
+                    kotlinx.coroutines.delay(40)
                     val success = withContext(Dispatchers.IO) {
                         ExtraDimController.setEnabled(target)
                     }

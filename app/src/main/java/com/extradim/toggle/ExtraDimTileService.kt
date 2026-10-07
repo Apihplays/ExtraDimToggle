@@ -22,6 +22,7 @@ class ExtraDimTileService : TileService() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var settingObserver: ContentObserver? = null
+    private var toggleJob: kotlinx.coroutines.Job? = null
 
     override fun onStartListening() {
         // Register ContentObserver to mirror changes made from system settings or widget
@@ -64,7 +65,9 @@ class ExtraDimTileService : TileService() {
             applyTileState(target)
         }
 
-        serviceScope.launch {
+        toggleJob?.cancel()
+        toggleJob = serviceScope.launch {
+            kotlinx.coroutines.delay(40)
             val success = withContext(Dispatchers.IO) {
                 if (target != null) {
                     ExtraDimController.setEnabled(target)
