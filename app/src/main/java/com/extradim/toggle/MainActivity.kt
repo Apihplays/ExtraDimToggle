@@ -118,13 +118,6 @@ fun ExtraDimScreen() {
             Text(if (enabled == true) "Disable" else "Enable")
         }
 
-        Spacer(Modifier.height(16.dp))
-
-        TextButton(
-            onClick = { refresh() },
-            enabled = !working
-        ) { Text("Refresh") }
-
         error?.let {
             Spacer(Modifier.height(16.dp))
             Text(
