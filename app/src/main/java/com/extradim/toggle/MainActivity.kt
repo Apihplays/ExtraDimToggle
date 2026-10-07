@@ -95,25 +95,27 @@ fun ExtraDimScreen() {
 
         Button(
             onClick = {
+                val current = enabled ?: return@Button
+                val target = !current
+
+                // Optimistic UI update: instantly update UI without waiting for IO
+                enabled = target
+                error = null
+
                 scope.launch {
-                    working = true
-                    error = null
-                    val (success, newEnabled) = withContext(Dispatchers.IO) {
-                        val current = enabled ?: return@withContext false to null
-                        val ok = ExtraDimController.setEnabled(!current)
-                        val updated = if (ok) ExtraDimController.isEnabled() else null
-                        ok to updated
+                    val success = withContext(Dispatchers.IO) {
+                        ExtraDimController.setEnabled(target)
                     }
                     if (success) {
-                        enabled = newEnabled
                         ExtraDimWidgetProvider.updateAll(context)
                     } else {
+                        // Revert on failure
+                        enabled = current
                         error = "Failed to change setting (permission denied?)"
                     }
-                    working = false
                 }
             },
-            enabled = enabled != null && !working && rootAvailable == true
+            enabled = enabled != null && rootAvailable == true
         ) {
             Text(if (enabled == true) "Disable" else "Enable")
         }

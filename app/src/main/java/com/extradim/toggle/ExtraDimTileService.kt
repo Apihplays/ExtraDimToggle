@@ -57,11 +57,26 @@ class ExtraDimTileService : TileService() {
     }
 
     override fun onClick() {
+        // Optimistic UI update: instantly flip tile state on tap
+        val currentTile = qsTile
+        val target = if (currentTile != null) currentTile.state != Tile.STATE_ACTIVE else null
+        if (target != null) {
+            applyTileState(target)
+        }
+
         serviceScope.launch {
-            withContext(Dispatchers.IO) {
-                ExtraDimController.toggle(this@ExtraDimTileService)
+            val success = withContext(Dispatchers.IO) {
+                if (target != null) {
+                    ExtraDimController.setEnabled(target)
+                } else {
+                    ExtraDimController.toggle(this@ExtraDimTileService)
+                }
             }
-            // ContentObserver handles tile state and widget update reactively
+            if (!success && target != null) {
+                // Revert if setting failed
+                applyTileState(!target)
+            }
+            ExtraDimWidgetProvider.updateAll(this@ExtraDimTileService)
         }
     }
 
