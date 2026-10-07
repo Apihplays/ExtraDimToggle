@@ -44,10 +44,24 @@ class ExtraDimWidgetProvider : AppWidgetProvider() {
             val pendingResult = goAsync()
             CoroutineScope(Dispatchers.Main).launch {
                 try {
-                    val enabled = withContext(Dispatchers.IO) {
-                        ExtraDimController.toggle(context)
+                    // 1. Read current state fast via root
+                    val current = withContext(Dispatchers.IO) {
+                        ExtraDimController.isEnabled()
                     }
-                    updateAllWidgets(context, enabled)
+                    val target = !current
+
+                    // 2. Optimistic UI update: instantly update all widgets on home screen
+                    updateAllWidgets(context, target)
+
+                    // 3. Execute privileged write in background
+                    val success = withContext(Dispatchers.IO) {
+                        ExtraDimController.setEnabled(target)
+                    }
+
+                    // 4. Revert if failed
+                    if (!success) {
+                        updateAllWidgets(context, current)
+                    }
                 } finally {
                     pendingResult.finish()
                 }
